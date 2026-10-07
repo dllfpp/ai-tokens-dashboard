@@ -4,6 +4,10 @@ A small self-hosted dashboard that shows how many tokens Claude Code uses on one
 project and per conversation, by hour, day, week and month. Python standard library only, no
 JavaScript, one SQLite file.
 
+<img src="docs/screenshots/overview.png" width="1440" height="1000" alt="Overview: four readings, chart by project, projects and models">
+
+<sub>Screenshots use invented demo data (`demo/make_demo.py`), not real usage.</sub>
+
 ## What you get
 
 - **Four readings**: this hour, today, this week and this month, each against the previous period.
@@ -18,6 +22,19 @@ JavaScript, one SQLite file.
   main thread against each subagent.
 - **Caveman savings** (optional): what the caveman proxy removed and how output per call changed.
 - Light and dark theme, works on phones, favicon, app icons and a social preview image.
+
+| Dark theme | Phone |
+|---|---|
+| <img src="docs/screenshots/overview-dark.png" width="1440" height="1000" alt="Overview in the dark theme"> | <img src="docs/screenshots/phone.png" width="390" height="844" alt="Overview on a phone"> |
+
+<img src="docs/screenshots/conversation.png" width="1440" height="1000" alt="Conversation page: new tokens, output, input, cache re-reads, hour by hour">
+
+## Try it with demo data
+
+```sh
+python3 -m demo.make_demo data/demo.db
+TOKENDASH_DB=data/demo.db CLAUDE_DIR=/nonexistent python3 -m tokendash.server
+```
 
 ## Requirements
 
