@@ -4,6 +4,28 @@ A small self-hosted dashboard that shows how many tokens Claude Code uses on one
 project and per conversation, by hour, day, week and month. Python standard library only, no
 JavaScript, one SQLite file.
 
+## What you get
+
+- **Four readings**: this hour, today, this week and this month, each against the previous period.
+- **Chart** by hour, day, week or month, stacked by project; click a bar to limit the tables to it.
+- **Projects**: one per conversation group, with its own observation window (today so far, 24 h,
+  48 h, 7 days, 30 days) and the latest conversation of each project; click a project to filter
+  everything to it.
+- **Models**: new tokens, output, cache re-reads and calls per model.
+- **Conversations**: every conversation of the period, sortable by new tokens, output, calls or
+  latest activity; five rows in view, the rest scroll.
+- **Conversation page**: totals, hour-by-hour or day-by-day use, folders and models it touched,
+  main thread against each subagent.
+- **Caveman savings** (optional): what the caveman proxy removed and how output per call changed.
+- Light and dark theme, works on phones, favicon, app icons and a social preview image.
+
+## Requirements
+
+Python 3.12 or newer, nothing to install. Claude Code on the same machine (the dashboard reads its
+transcripts). OpenRC only for the bundled service script; any process manager works.
+
+## New tokens and cache re-reads
+
 The main figure everywhere is **new tokens** = input + cache write + output: what each call adds.
 Cache reads are shown beside it as "re-read from cache": every call sends the whole conversation
 again, so they grow with the length of a chat and would otherwise drown the real work (a long
