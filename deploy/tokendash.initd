@@ -1,0 +1,29 @@
+#!/sbin/openrc-run
+# Token dashboard: Claude Code token use and cost per project and conversation.
+# Installed by deploy/deploy.sh as /etc/init.d/tokendash.
+
+name="tokendash"
+description="Claude Code token and cost dashboard"
+
+: ${TOKENDASH_DIR:=/opt/token-dashboard}
+: ${TOKENDASH_LOG:=/var/log/tokendash.log}
+
+supervisor="supervise-daemon"
+command="/usr/bin/python3"
+command_args="-m tokendash.server"
+directory="${TOKENDASH_DIR}"
+output_log="${TOKENDASH_LOG}"
+error_log="${TOKENDASH_LOG}"
+respawn_delay=5
+respawn_max=0
+
+# Reads root's ~/.claude transcripts (read only) and keeps its own SQLite in data/.
+export HOME=/root
+# Local settings (TOKENDASH_PUBLIC_URL, CLOUDCLI_URL, CLOUDCLI_DB, ...) go in /etc/conf.d/tokendash,
+# which OpenRC loads before this script.
+export TOKENDASH_PORT="${TOKENDASH_PORT:-3020}"
+export TOKENDASH_DB="${TOKENDASH_DIR}/data/usage.db"
+
+depend() {
+    need net
+}

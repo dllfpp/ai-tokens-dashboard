@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DASHBOARD: AI TOKENS social image</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,700&family=Nunito:wght@800;900&display=swap">
+<style>
+  /* 1200x630 social preview, same tokens as tokendash/ui/style.css */
+  :root {
+    --bg: #e7e3f4; --surface: #f5f2fc; --well: #dcd6ee; --ink: #2a2346; --ink-soft: #5b5378;
+    --p0: #f39a8a; --p1: #7fbde6; --p2: #7fd3a4; --p3: #a993ee; --p4: #f2c96a; --p5: #ec92bf; --p6: #c4bed6;
+    --hi: inset -4px -5px 10px rgba(255,255,255,.75);
+    --lo: 10px 14px 28px rgba(74,58,128,.20);
+    --press: inset 6px 7px 14px rgba(74,58,128,.18), inset -4px -4px 10px rgba(255,255,255,.7);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; background: var(--bg); }
+  body { font: 500 26px/1.4 "DM Sans", sans-serif; color: var(--ink); padding: 56px 72px; display: grid;
+         grid-template-columns: 1fr 440px; grid-template-rows: auto 1fr; column-gap: 56px; row-gap: 34px;
+         align-items: center; }
+  /* the name runs across the whole card, the description and the chart sit under it */
+  .logo { grid-column: 1 / -1; display: flex; align-items: center; gap: 24px; }
+  .logo img { width: 100px; height: 100px; filter: drop-shadow(8px 12px 18px rgba(74,58,128,.25)); }
+  .logo b { font: 900 66px/1 Nunito, sans-serif; letter-spacing: .005em; white-space: nowrap; }
+  h1 { font: 800 40px/1.2 Nunito, sans-serif; max-width: 17ch; margin-bottom: 34px; }
+  ol { list-style: none; padding: 0; display: flex; align-items: flex-end; gap: 14px; }
+  li { background: var(--surface); box-shadow: var(--lo), var(--hi); font: 800 19px Nunito, sans-serif;
+       padding: 12px 16px; color: var(--ink-soft); white-space: nowrap; }
+  li:nth-child(1) { border-radius: 26px 32px 22px 28px; }
+  li:nth-child(2) { border-radius: 30px 24px 34px 26px; padding-top: 20px; }
+  li:nth-child(3) { border-radius: 26px 36px 28px 34px; padding-top: 26px; }
+  li:nth-child(4) { border-radius: 40px 30px 42px 34px; padding-top: 34px; background: var(--p3); color: #1d1636; }
+  .tray { height: 380px; border-radius: 40px; background: var(--well); box-shadow: var(--press); padding: 26px 28px 24px;
+          display: flex; align-items: flex-end; gap: 14px; }
+  .bar { flex: 1; display: flex; flex-direction: column-reverse; gap: 3px; }
+  .bar i { display: block; border-radius: 8px; box-shadow: inset -2px -3px 5px rgba(0,0,0,.08), inset 2px 3px 5px rgba(255,255,255,.45); }
+  .bar i:last-child { border-radius: 14px 14px 8px 8px; }
+</style>
+</head>
+<body>
+  <div class="logo"><img src="mark.svg" alt=""><b>DASHBOARD: AI TOKENS</b></div>
+  <div>
+    <h1>Claude Code tokens per project and conversation</h1>
+    <ol><li>This hour</li><li>Today</li><li>This week</li><li>This month</li></ol>
+  </div>
+  <div class="tray" aria-hidden="true">
+    <div class="bar"><i style="height:40px;background:var(--p0)"></i><i style="height:22px;background:var(--p1)"></i></div>
+    <div class="bar"><i style="height:70px;background:var(--p0)"></i><i style="height:30px;background:var(--p2)"></i></div>
+    <div class="bar"><i style="height:54px;background:var(--p1)"></i><i style="height:24px;background:var(--p4)"></i></div>
+    <div class="bar"><i style="height:110px;background:var(--p0)"></i><i style="height:44px;background:var(--p3)"></i><i style="height:20px;background:var(--p6)"></i></div>
+    <div class="bar"><i style="height:84px;background:var(--p1)"></i><i style="height:40px;background:var(--p5)"></i></div>
+    <div class="bar"><i style="height:150px;background:var(--p0)"></i><i style="height:60px;background:var(--p2)"></i><i style="height:26px;background:var(--p4)"></i></div>
+    <div class="bar"><i style="height:120px;background:var(--p1)"></i><i style="height:70px;background:var(--p3)"></i></div>
+    <div class="bar"><i style="height:190px;background:var(--p0)"></i><i style="height:96px;background:var(--p1)"></i><i style="height:36px;background:var(--p6)"></i></div>
+  </div>
+</body>
+</html>
