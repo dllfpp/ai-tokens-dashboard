@@ -1,7 +1,11 @@
 """Argilla: claymorphism. New tokens as clay pebbles that grow from the hour to the month.
 Main figure everywhere: new tokens (input + cache write + output). Cache reads, the history sent
 again on every call, are shown beside it as re-reads."""
+from datetime import datetime
+
 from tokendash.caveman import BEFORE_DAYS
+from tokendash.limits import forecast
+from tokendash.store import to_local
 from tokendash.query import PROJECT_WINDOWS
 from tokendash.fmt import (CLOUDCLI_URL, GRAIN_NAMES, KIND, SIGNATURE, SORTS, TOKEN_NOTE, bar_chart, change, clock, count,
                            esc, legend, project_colors, reread, share, split, tokens, when)
@@ -134,7 +138,38 @@ def caveman_block(c, u):
 {caveman_pebbles(c)}</section>"""
 
 
-def overview(ctx, u, cav=None):
+LIMIT_NAMES = {"session": "Session, 5 hours", "weekly_all": "Week, all models"}
+
+
+def limit_pebble(lim):
+    """One plan limit: percent used, a gauge, the reset and where the pace leads."""
+    pc = max(0, min(lim["percent"], 100))
+    name = LIMIT_NAMES.get(lim["kind"]) or lim["name"].replace("Settimana", "Week,")
+    reset = to_local(datetime.fromisoformat(lim["resets_at"])).strftime("%a %-d %b, %H:%M") if lim["resets_at"] else "unknown"
+    f = forecast(lim)
+    bar = "lim out" if f and f["runs_out"] else "lim"
+    if f is None:
+        chg = '<span class="chg flat">too early for a forecast</span>'
+    elif f["runs_out"]:
+        out = to_local(f["runs_out"]).strftime("%a %-d %b, %H:%M")
+        chg = f'<span class="chg up">runs out {out}<small>before the reset, at this pace</small></span>'
+    else:
+        chg = f'<span class="chg down">about {min(f["at_reset"], 100):.0f}% at reset<small>at this pace</small></span>'
+    return (f'<li class="pebble"><span class="ttl">{esc(name)}</span><strong>{pc:.0f}%</strong>'
+            f'<span class="fill" role="img" aria-label="{pc:.0f}% used"><span class="{bar}" style="width:{pc:.1f}%"></span></span>'
+            f'<span class="tok">resets {reset}</span>{chg}</li>')
+
+
+def limits_block(lims):
+    """Claude plan limits, live from Anthropic; hidden when they cannot be read."""
+    if not lims:
+        return ""
+    return f"""<section class="tray limits-tray"><div class="tray-head"><h2>Claude plan limits <small>live from Anthropic</small></h2>
+<p>How much of each plan limit is used, and where the average pace of the window leads by its reset.</p></div>
+<ol class="pebbles limits">{"".join(limit_pebble(l) for l in lims)}</ol></section>"""
+
+
+def overview(ctx, u, cav=None, lims=None):
     slots = project_colors(ctx["top_projects"])
     scope = ctx["scope"]
     filt = ""
@@ -178,6 +213,7 @@ def overview(ctx, u, cav=None):
   {bar_chart(ctx, u, height=200, gap=0.28)}
   <ul class="legend">{legend(ctx)}</ul>
 </section>
+{limits_block(lims)}
 {caveman_block(cav, u)}
 {filt}
 <div class="split">

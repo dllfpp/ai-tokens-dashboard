@@ -175,6 +175,13 @@ footer p { margin: 0; max-width: 78ch; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
+/* plan limits */
+.pebbles.limits { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 4px; }
+.pebbles.limits .fill { margin: 8px 0 6px; }
+.fill .lim { background: var(--p3); }
+.fill .lim.out { background: var(--up); }
+@media (max-width: 900px) { .pebbles.limits { grid-template-columns: 1fr; } }
+
 /* caveman savings */
 .cave-tray .tray-head a { font-weight: 700; margin-left: 4px; }
 .pebbles.cave { grid-template-columns: repeat(4, 1fr); margin-bottom: 4px; }

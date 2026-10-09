@@ -4,7 +4,7 @@ A small self-hosted dashboard that shows how many tokens Claude Code uses on one
 project and per conversation, by hour, day, week and month. Python standard library only, no
 JavaScript, one SQLite file.
 
-<img src="docs/screenshots/overview.png" width="1440" height="1000" alt="Overview: four readings, chart by project, projects and models">
+<img src="docs/screenshots/overview.png" width="1440" height="1040" alt="Overview: four readings, chart by project, Claude plan limits">
 
 <sub>Screenshots use invented demo data (`demo/make_demo.py`), not real usage.</sub>
 
@@ -25,7 +25,7 @@ JavaScript, one SQLite file.
 
 | Dark theme | Phone |
 |---|---|
-| <img src="docs/screenshots/overview-dark.png" width="1440" height="1000" alt="Overview in the dark theme"> | <img src="docs/screenshots/phone.png" width="390" height="844" alt="Overview on a phone"> |
+| <img src="docs/screenshots/overview-dark.png" width="1440" height="1040" alt="Overview in the dark theme"> | <img src="docs/screenshots/phone.png" width="390" height="844" alt="Overview on a phone"> |
 
 <img src="docs/screenshots/conversation.png" width="1440" height="1000" alt="Conversation page: new tokens, output, input, cache re-reads, hour by hour">
 
@@ -33,7 +33,7 @@ JavaScript, one SQLite file.
 
 ```sh
 python3 -m demo.make_demo data/demo.db
-TOKENDASH_DB=data/demo.db CLAUDE_DIR=/nonexistent python3 -m tokendash.server
+TOKENDASH_DB=data/demo.db TOKENDASH_LIMITS_JSON=data/demo-limits.json CLAUDE_DIR=/nonexistent python3 -m tokendash.server
 ```
 
 ## Requirements
@@ -100,7 +100,13 @@ The server renders HTML, the chart is inline SVG with one link per bar, the page
 `/api/report/limits` asks Anthropic for the plan limits with the OAuth token Claude Code keeps in
 `~/.claude/.credentials.json` (the same numbers as `/usage`). Each limit gets a straight-line forecast
 at the window's average pace: the percentage expected at reset, or the time it runs out if that
-comes first. No forecast in the first 5% of a window. Nothing is stored. A script that polls it and
+comes first. No forecast in the first 5% of a window. Nothing is stored. The overview shows them in
+a "Claude plan limits" box, read at most once a minute, hidden when they cannot be read.
+
+<img src="docs/screenshots/limits.png" width="1132" height="294" alt="Claude plan limits: session 41%, week 71% running out before its reset, week for one model 38%">
+
+`TOKENDASH_LIMITS_JSON` points to a saved answer to read instead of asking Anthropic (the demo
+writes one). A script that polls it and
 sends a chat message every 10 points, or when a forecast turns red, is easy to build on top.
 
 ## Run

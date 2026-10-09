@@ -124,7 +124,7 @@ class Handler(BaseHTTPRequestHandler):
                 with lock:
                     ctx = query.overview(db, params["g"] or "day", params["at"], params["p"], params["sort"] or "new", params["pw"])
                     cav = caveman_summary()
-                return self.send(200, view.overview(ctx, u, cav))
+                return self.send(200, view.overview(ctx, u, cav, limits.cached()))
             if path == "/caveman":
                 with lock:
                     cav = caveman_summary()

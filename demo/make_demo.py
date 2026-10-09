@@ -1,17 +1,19 @@
 """Fills a database with invented usage, for screenshots and trying the dashboard out.
 
   python3 -m demo.make_demo data/demo.db
-  TOKENDASH_DB=data/demo.db CLAUDE_DIR=/nonexistent python3 -m tokendash.server
+  TOKENDASH_DB=data/demo.db TOKENDASH_LIMITS_JSON=data/demo-limits.json CLAUDE_DIR=/nonexistent \
+      python3 -m tokendash.server
 
 Projects, conversation titles and numbers are made up. Times are relative to now, so the
 hour/day/week/month readings and the chart are always filled. Deterministic (fixed seed).
 """
+import json
 import os
 import random
 import sys
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from tokendash import store
 
@@ -71,6 +73,20 @@ def main(path):
     db.commit()
     n = db.execute("SELECT count(*) FROM calls").fetchone()[0]
     print(f"{n} invented calls in {path}")
+    limits(os.path.join(os.path.dirname(path), "demo-limits.json"))
+
+
+def limits(path):
+    """Invented plan limits, shaped like Anthropic's usage answer: the session is easy,
+    the week runs out before its reset, the per-model week is fine."""
+    now = datetime.now(timezone.utc)
+    rows = [("session", 41, now + timedelta(hours=2, minutes=40), None),
+            ("weekly_all", 71, now + timedelta(days=2, hours=6), None),
+            ("weekly_scoped", 38, now + timedelta(days=2, hours=6), {"model": {"display_name": "Opus"}})]
+    with open(path, "w") as f:
+        json.dump({"limits": [{"kind": k, "percent": pc, "resets_at": r.isoformat(), "scope": sc}
+                              for k, pc, r, sc in rows]}, f)
+    print(f"invented plan limits in {path}")
 
 
 if __name__ == "__main__":
