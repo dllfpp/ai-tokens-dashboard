@@ -2,6 +2,7 @@
 
 [![Latest release](https://img.shields.io/github/v/release/dllfpp/ai-tokens-dashboard)](https://github.com/dllfpp/ai-tokens-dashboard/releases/latest)
 [![Last commit](https://img.shields.io/github/last-commit/dllfpp/ai-tokens-dashboard)](https://github.com/dllfpp/ai-tokens-dashboard/commits/main)
+[![License: MIT](https://img.shields.io/github/license/dllfpp/ai-tokens-dashboard)](LICENSE)
 
 A small self-hosted dashboard that shows how many tokens Claude Code uses on one machine, per
 project and per conversation, by hour, day, week and month. Python standard library only, no
@@ -149,3 +150,7 @@ manifest are in `tokendash/ui/static/`; sources and build scripts in `brand/` (`
 carry `?v=<content hash>`, so browsers pick up a new version at once.
 
 Made with love ❤️ - DLLFPP ([buymeacoffee.com/dllfpp](https://buymeacoffee.com/dllfpp))
+
+## License
+
+MIT, see [LICENSE](LICENSE).
