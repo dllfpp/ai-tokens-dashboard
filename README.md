@@ -1,5 +1,7 @@
 # DASHBOARD: AI TOKENS
 
+[![Latest release](https://img.shields.io/github/v/release/dllfpp/ai-tokens-dashboard)](https://github.com/dllfpp/ai-tokens-dashboard/releases/latest)
+
 A small self-hosted dashboard that shows how many tokens Claude Code uses on one machine, per
 project and per conversation, by hour, day, week and month. Python standard library only, no
 JavaScript, one SQLite file.
