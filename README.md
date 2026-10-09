@@ -80,6 +80,8 @@ session can re-read tens of millions of tokens to produce a few hundred thousand
 | `/s/<session id>` | one conversation: totals, folders and models, hour by hour or day by day, main thread and subagents |
 | `/caveman` | savings from the caveman proxy and skill, if installed |
 | `/api/overview`, `/api/session/<id>`, `/api/caveman` | the same data as JSON |
+| `/api/report/today` | today's totals as short Telegram-ready HTML text (`{"text": ...}`) |
+| `/api/report/limits` | Claude plan limits (5-hour session, week, week per model) read live from Anthropic, with a forecast, as Telegram-ready HTML text |
 
 The server renders HTML, the chart is inline SVG with one link per bar, the page refreshes every
 60 seconds.
@@ -92,6 +94,14 @@ The server renders HTML, the chart is inline SVG with one link per bar, the page
   read only. Proxy: request size in tokens before and after its rewrite, measured by the proxy.
   Skill: output tokens per call in the 7 days before the proxy's first request against every
   call since: a trend, not a controlled test. Without the file the section is hidden.
+
+## Plan limits and forecast
+
+`/api/report/limits` asks Anthropic for the plan limits with the OAuth token Claude Code keeps in
+`~/.claude/.credentials.json` (the same numbers as `/usage`). Each limit gets a straight-line forecast
+at the window's average pace: the percentage expected at reset, or the time it runs out if that
+comes first. No forecast in the first 5% of a window. Nothing is stored. A script that polls it and
+sends a chat message every 10 points, or when a forecast turns red, is easy to build on top.
 
 ## Run
 

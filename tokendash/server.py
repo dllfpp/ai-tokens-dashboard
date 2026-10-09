@@ -17,7 +17,7 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import caveman, fmt, query, store
+from . import caveman, fmt, limits, query, report, store
 from .ui import view
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -140,11 +140,19 @@ class Handler(BaseHTTPRequestHandler):
             pass
 
     def api(self, path, params):
+        if path == "/api/report/limits":  # live from Anthropic, no database
+            try:
+                data = {"text": limits.text(limits.fetch())}
+            except OSError as e:
+                return self.send(502, json.dumps({"error": str(e)}), "application/json")
+            return self.send(200, json.dumps(data), "application/json")
         with lock:
             if path == "/api/overview":
                 data = query.overview(db, params["g"] or "day", params["at"], params["p"], params["sort"] or "new", params["pw"])
             elif path == "/api/caveman":
                 data = caveman_summary()
+            elif path == "/api/report/today":
+                data = report.today(db, PUBLIC_URL)
             elif path.startswith("/api/session/"):
                 data = query.session(db, unquote(path[len("/api/session/"):]))
             else:
