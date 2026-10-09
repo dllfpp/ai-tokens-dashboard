@@ -149,8 +149,8 @@ manifest are in `tokendash/ui/static/`; sources and build scripts in `brand/` (`
 `og.html`, `build_logo.py` with fontTools, `render.js` with Playwright, `make_ico.py`). Asset URLs
 carry `?v=<content hash>`, so browsers pick up a new version at once.
 
-Made with love ❤️ - DLLFPP ([buymeacoffee.com/dllfpp](https://buymeacoffee.com/dllfpp))
-
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+Made with love ❤️ - DLLFPP ([buymeacoffee.com/dllfpp](https://buymeacoffee.com/dllfpp))
