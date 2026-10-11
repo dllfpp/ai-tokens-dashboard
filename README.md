@@ -104,14 +104,24 @@ The server renders HTML, the chart is inline SVG with one link per bar, the page
 `/api/report/limits` asks Anthropic for the plan limits with the OAuth token Claude Code keeps in
 `~/.claude/.credentials.json` (the same numbers as `/usage`). Each limit gets a straight-line forecast
 at the window's average pace: the percentage expected at reset, or the time it runs out if that
-comes first. No forecast in the first 5% of a window. Nothing is stored. The overview shows them in
-a "Claude plan limits" box, read at most once a minute, hidden when they cannot be read.
+comes first. No forecast in the first 5% of a window. The overview shows them in a "Claude plan
+limits" box, read at most once an hour, hidden when they cannot be read.
+
+Anthropic rate-limits this endpoint (HTTP 429 with `Retry-After`, up to about half an hour), and
+every request made while blocked restarts the wait. So all callers in this package (the page, the
+API, a script importing `tokendash.limits`) share one saved reply in `TOKENDASH_LIMITS_CACHE`:
+
+- a reply younger than 2 minutes is reused instead of asking again;
+- after a 429 nobody asks again until the time Anthropic gave (a `.pause` file next to the cache);
+- when Anthropic cannot be reached, the last good reply is used instead of an error.
+
+Keep anything that polls the limits to a few times an hour.
 
 <img src="docs/screenshots/limits.png" width="1132" height="294" alt="Claude plan limits: session 41%, week 71% running out before its reset, week for one model 38%">
 
 `TOKENDASH_LIMITS_JSON` points to a saved answer to read instead of asking Anthropic (the demo
-writes one). A script that polls it and
-sends a chat message every 10 points, or when a forecast turns red, is easy to build on top.
+writes one). A script that polls the limits every 15 minutes and sends a chat message every 10
+points, or when a forecast turns red, is easy to build on top.
 
 ## Run
 
@@ -129,6 +139,7 @@ python3 -m tokendash.server    # dashboard on :3020, re-imports every 30 s
 | `CLAUDE_DIR` | `~/.claude` | where Claude Code keeps its transcripts |
 | `CLOUDCLI_DB`, `CLOUDCLI_URL` | empty | CloudCLI integration |
 | `CAVEMAN_DB` | `~/.caveman/caveman.db` | caveman integration |
+| `TOKENDASH_LIMITS_CACHE` | `/opt/token-dashboard/data/limits-cache.json` | plan limits reply shared by all callers |
 
 ## Deploy with OpenRC
 
