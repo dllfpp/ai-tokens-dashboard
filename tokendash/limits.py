@@ -4,6 +4,7 @@ import json
 import os
 import threading
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from html import escape
@@ -13,7 +14,7 @@ from .store import CLAUDE_DIR, to_local
 URL = "https://api.anthropic.com/api/oauth/usage"
 # A saved response of URL, read instead of asking Anthropic: for demos and screenshots.
 SAVED = os.environ.get("TOKENDASH_LIMITS_JSON")
-TTL = 60  # seconds a reading is reused: the page refreshes every minute
+TTL = 3600  # the dashboard re-reads the limits at most once an hour
 WINDOW = {"session": timedelta(hours=5)}  # the weekly limits last 7 days
 NAMES = {"session": "Sessione (5 ore)", "weekly_all": "Settimana (tutti i modelli)"}
 
@@ -22,16 +23,59 @@ _cache = {"at": 0.0, "limits": None}
 _cache_lock = threading.Lock()
 
 
+# One reply shared by every caller (dashboard, bot buttons, alert cron): Anthropic answers 429
+# when asked too often. Fresher than MIN_AGE = reused; on any error the last good reply is used.
+SHARED = os.environ.get("TOKENDASH_LIMITS_CACHE", "/opt/token-dashboard/data/limits-cache.json")
+MIN_AGE = 120
+
+
 def _ask():
     if SAVED:
         with open(SAVED) as f:
             return json.load(f)
-    with open(os.path.join(CLAUDE_DIR, ".credentials.json")) as f:
-        token = json.load(f)["claudeAiOauth"]["accessToken"]
-    req = urllib.request.Request(URL, headers={"Authorization": "Bearer " + token,
-                                               "anthropic-beta": "oauth-2025-04-20"})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.load(r)
+    try:
+        if time.time() - os.path.getmtime(SHARED) < MIN_AGE:
+            with open(SHARED) as f:
+                return json.load(f)
+    except (OSError, ValueError):
+        pass
+    try:
+        paused = time.time() < float(open(SHARED + ".pause").read())
+    except (OSError, ValueError):
+        paused = False
+    if paused:
+        return _stale("Anthropic asked to wait before reading the limits again")
+    try:
+        with open(os.path.join(CLAUDE_DIR, ".credentials.json")) as f:
+            token = json.load(f)["claudeAiOauth"]["accessToken"]
+        req = urllib.request.Request(URL, headers={"Authorization": "Bearer " + token,
+                                                   "anthropic-beta": "oauth-2025-04-20"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            data = json.load(r)
+    except urllib.error.HTTPError as e:
+        if e.code == 429:  # respect Retry-After, or every caller restarts Anthropic's wait
+            with open(SHARED + ".pause", "w") as f:
+                f.write(str(time.time() + int(e.headers.get("retry-after") or 600)))
+        return _stale(e)
+    except (OSError, ValueError, KeyError) as e:
+        return _stale(e)
+    try:
+        tmp = SHARED + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(data, f)
+        os.replace(tmp, SHARED)
+    except OSError:
+        pass
+    return data
+
+
+def _stale(err):
+    """Last good reply, stale but real; without one, the original error."""
+    try:
+        with open(SHARED) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        raise OSError(f"plan limits unavailable: {err}") from None
 
 
 def cached():
@@ -42,8 +86,8 @@ def cached():
             try:
                 _cache["limits"] = fetch()
             except (OSError, ValueError, KeyError) as e:
+                # keep the last good reading (Anthropic answers 429 when asked too often)
                 print("plan limits unavailable:", e)
-                _cache["limits"] = None
             _cache["at"] = time.monotonic()
         return _cache["limits"]
 
@@ -60,6 +104,7 @@ def fetch():
         if name:
             out.append({"kind": lim["kind"], "name": name, "percent": lim["percent"],
                         "resets_at": lim["resets_at"] or ""})
+    _cache["limits"] = out  # last good reading, used when Anthropic rate-limits
     return out
 
 

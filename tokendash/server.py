@@ -144,7 +144,10 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 data = {"text": limits.text(limits.fetch())}
             except OSError as e:
-                return self.send(502, json.dumps({"error": str(e)}), "application/json")
+                last = limits.cached()  # rate-limited or offline: last good reading instead of an error
+                if not last:
+                    return self.send(502, json.dumps({"error": str(e)}), "application/json")
+                data = {"text": limits.text(last) + "\n<i>(dato dell'ultimo minuto: Anthropic ha chiesto di riprovare più tardi)</i>"}
             return self.send(200, json.dumps(data), "application/json")
         with lock:
             if path == "/api/overview":
