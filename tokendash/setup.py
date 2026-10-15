@@ -239,7 +239,7 @@ def service(cfg):
         kind = "openrc"
     else:
         kind = None
-    if not kind or not yes(f"Install a {kind} service" if kind else "", True):
+    if not kind or not yes(f"Install the {kind} service" if kind else "", True):
         say(f"{NOTE}no service installed. Start it by hand with:\n    cd {ROOT} && {py} -m tokendash.server")
         return None
     if os.geteuid() != 0:
@@ -278,6 +278,7 @@ output_log="/var/log/tokendash.log"
 error_log="/var/log/tokendash.log"
 export TOKENDASH_CONFIG="{CONFIG}"
 depend() {{ need net; }}
+start_pre() {{ checkpath -f -m 0644 -o "{USER}" /var/log/tokendash.log; }}
 """
         with open("/etc/init.d/tokendash", "w") as f:
             f.write(script)
