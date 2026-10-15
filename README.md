@@ -44,8 +44,34 @@ TOKENDASH_DB=data/demo.db TOKENDASH_LIMITS_JSON=data/demo-limits.json CLAUDE_DIR
 
 ## Install
 
-On the machine where you use Claude Code (Linux or macOS), with Python 3.12 or newer and nothing
-else to install:
+### What you need
+
+Prepare these before you start. The wizard checks each one and says what is missing.
+
+**Required**
+
+| | |
+|---|---|
+| Python 3.12 or newer | no Python packages to install. Debian 12 ships 3.11, too old: use Debian 13, Ubuntu 24.04 or newer |
+| Claude Code | used on this machine by the user the dashboard will run as: the dashboard reads the conversations it writes in `~/.claude/projects` |
+| a free TCP port | 3020 by default |
+| git | only to clone; downloading the ZIP from GitHub works too |
+
+**Optional**, each one turns on a feature
+
+| | Turns on | How to get it |
+|---|---|---|
+| Claude Code login + access to `api.anthropic.com` | Claude plan limits box and charts | `claude`, then `/login`, as the same user. On macOS the login in the Keychain is used |
+| Pillow | limits as a PNG image for chat messages (`/api/report/limits.png`) | `apt install python3-pil`, `apk add py3-pillow`, or `pip install pillow` |
+| tzdata (time zone database) | counting hours in a zone other than the system one | `apt install tzdata`, `apk add tzdata`, or `pip install tzdata`, when there is no `/usr/share/zoneinfo` |
+| root or sudo, with systemd, OpenRC or macOS launchd | a service that starts with the machine | without it, start the dashboard by hand or with your own tool |
+| CloudCLI | conversation names from CloudCLI, links to open them there | its `data/auth.db` and web address |
+| caveman proxy | the `/caveman` savings page | `~/.caveman/caveman.db` |
+| a reverse proxy with a login | reaching the dashboard from other machines | the dashboard itself has no login |
+
+### Run the wizard
+
+On the machine where you use Claude Code (Linux or macOS):
 
 ```sh
 git clone https://github.com/dllfpp/ai-tokens-dashboard.git
@@ -55,8 +81,8 @@ sudo python3 -m tokendash.setup      # or without sudo, to skip the service
 
 The setup wizard:
 
-1. checks Python, the Claude Code transcripts of your user, the Claude Code login (for the plan
-   limits) and Pillow (only for the limits image), and says what to do about anything missing;
+1. lists what is needed, then checks every required and optional dependency above and says
+   what to do about anything missing;
 2. asks for the time zone (proposes the system one), the port, the data folder, the Claude Code
    folder and, if you use them, the public address and CloudCLI;
 3. saves the answers in `tokendash.env` next to the code (run the wizard again to change them);

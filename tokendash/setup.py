@@ -97,10 +97,34 @@ def port_free(port):
         return s.connect_ex(("127.0.0.1", int(port))) != 0
 
 
+REQUIREMENTS = """What the dashboard needs. Prepare these before you start.
+
+  Required
+    - Python 3.12 or newer (no Python packages to install)
+    - Claude Code used on this machine by the user the dashboard will run as:
+      it reads the conversations Claude Code writes in ~/.claude/projects
+    - a free TCP port (3020 by default)
+
+  Optional, each one adds a feature
+    - Claude Code login on this machine (`claude`, then `/login`) and access to
+      api.anthropic.com: the Claude plan limits box and its charts
+    - Pillow (python3-pil / py3-pillow / pip install pillow): the limits as a PNG image,
+      to attach to a chat message
+    - tzdata (time zone database), when the system has no /usr/share/zoneinfo:
+      needed to count hours in a zone other than the system one
+    - root or sudo, with systemd, OpenRC or macOS launchd: a service that starts with the machine
+    - CloudCLI: conversation names from CloudCLI and links to open them there
+    - the caveman proxy: the /caveman savings page
+    - a reverse proxy with a login, if the dashboard must be reachable from other machines
+"""
+
+
 def check(cfg):
-    """Requirements, with what to do when one is missing. Returns False if the dashboard cannot run."""
-    say("\n1. Checking the requirements")
+    """Every required and optional dependency, with what to do when one is missing.
+    Returns False if something required is missing."""
+    say("\n1. Checking what is needed")
     ok = True
+    say("\n  Required")
     if sys.version_info >= (3, 12):
         say(f"{GOOD}Python {sys.version.split()[0]}")
     else:
@@ -111,23 +135,50 @@ def check(cfg):
     for _, _, files in os.walk(os.path.join(claude, "projects")):
         found += sum(f.endswith(".jsonl") for f in files)
     if found:
-        say(f"{GOOD}Claude Code transcripts: {found} files in {claude}/projects")
+        say(f"{GOOD}Claude Code conversations: {found} files in {claude}/projects")
     else:
-        say(f"{BAD}no Claude Code transcripts in {claude}/projects. Use Claude Code once as this user"
-            f" ({USER}), or set CLAUDE_DIR to where they are.")
+        say(f"{BAD}no Claude Code conversations in {claude}/projects. Use Claude Code once as this user"
+            f" ({USER}), or give the right folder in the next step.")
+        ok = False
+    port = cfg.get("TOKENDASH_PORT", "3020")
+    say(f"{GOOD}port {port} free" if port_free(port) else
+        f"{NOTE}port {port} is in use (fine if it is this dashboard; else choose another one next)")
+
+    say("\n  Optional")
     try:
         from tokendash import limits
         limits.access_token()
-        say(f"{GOOD}Claude Code login found (plan limits can be read)")
+        say(f"{GOOD}Claude Code login found: plan limits box on")
     except Exception:
-        say(f"{NOTE}no Claude Code login readable: the plan limits box will say so."
+        say(f"{NOTE}no Claude Code login readable: plan limits box off."
             " Log in with `claude` then `/login`, as this user.")
     try:
         import PIL  # noqa: F401
-        say(f"{GOOD}Pillow present (limits as an image for chat bots)")
+        say(f"{GOOD}Pillow present: limits image on")
     except ImportError:
-        say(f"{NOTE}Pillow missing: only /api/report/limits.png needs it"
+        say(f"{NOTE}Pillow missing: limits image off"
             " (Debian/Ubuntu: apt install python3-pil, Alpine: apk add py3-pillow, else pip install pillow)")
+    try:
+        from zoneinfo import ZoneInfo
+        ZoneInfo("America/New_York")
+        say(f"{GOOD}time zone database present: any time zone can be used")
+    except Exception:
+        say(f"{NOTE}no time zone database: only the system zone works"
+            " (Debian/Ubuntu: apt install tzdata, Alpine: apk add tzdata, else pip install tzdata)")
+    manager = ("launchd" if sys.platform == "darwin" else "systemd" if os.path.isdir("/run/systemd/system")
+               else "OpenRC" if shutil.which("openrc-run") or os.path.exists("/sbin/openrc-run") else None)
+    if not manager:
+        say(f"{NOTE}no systemd, OpenRC or launchd: start the dashboard by hand or with your own tool")
+    elif sys.platform != "darwin" and os.geteuid() != 0:
+        say(f"{NOTE}{manager} found, but not running as root: run again with sudo to install the service")
+    else:
+        say(f"{GOOD}{manager} found: the dashboard can start with the machine")
+    cloudcli = cfg.get("CLOUDCLI_DB") or next((p for p in ("/opt/claudecodeui/data/auth.db",
+                                                          os.path.join(HOME, ".cloudcli", "auth.db")) if os.path.exists(p)), "")
+    say(f"{GOOD}CloudCLI found ({cloudcli})" if cloudcli else f"{NOTE}CloudCLI not found: names and links from CloudCLI off")
+    cave = os.path.join(HOME, ".caveman", "caveman.db")
+    say(f"{GOOD}caveman proxy data found: /caveman page on" if os.path.exists(cave)
+        else f"{NOTE}caveman proxy not found: /caveman page off")
     return ok
 
 
@@ -162,9 +213,6 @@ def settings(cfg):
     else:
         out.pop("CLOUDCLI_DB", None)
         out.pop("CLOUDCLI_URL", None)
-    cave = os.path.join(HOME, ".caveman", "caveman.db")
-    if os.path.exists(cave):
-        say(f"{GOOD}caveman proxy data found: the /caveman page will use it")
     return out
 
 
@@ -281,7 +329,8 @@ def verify(cfg, started):
 
 
 def main():
-    say("DASHBOARD: AI TOKENS, setup")
+    say("DASHBOARD: AI TOKENS, setup\n")
+    say(REQUIREMENTS)
     cfg = saved()
     if not check(cfg) and not yes("Something required is missing. Continue anyway?", False):
         sys.exit(1)
