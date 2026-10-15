@@ -120,7 +120,9 @@ API, a script importing `tokendash.limits`) share one saved reply in `TOKENDASH_
 
 Keep anything that polls the limits to a few times an hour.
 
-<img src="docs/screenshots/limits.png" width="1132" height="294" alt="Claude plan limits: session 41%, week 71% running out before its reset, week for one model 38%">
+<img src="docs/screenshots/limits.png" width="1132" height="437" alt="Claude plan limits with a chart each: session 41%, week 71% above the even pace and running out before its reset, week for one model 38%">
+
+<img src="docs/screenshots/effort.png" width="1132" height="383" alt="Effort by model: share of each model's new tokens at low, medium and high effort">
 
 `TOKENDASH_LIMITS_JSON` points to a saved answer to read instead of asking Anthropic (the demo
 writes one). A script that polls the limits every 15 minutes and sends a chat message every 10

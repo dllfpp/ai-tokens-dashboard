@@ -41,9 +41,12 @@ def call(db, rnd, sid, project, ts, agent=None):
     read = int(rnd.uniform(40_000, 320_000))
     dt = datetime.fromtimestamp(ts, timezone.utc)
     h, day, wk, mo = store.buckets(store.to_local(dt))
-    db.execute("INSERT INTO calls VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)",
+    effort = rnd.choices(["low", "medium", "high"], [5, 2, 3])[0]
+    db.execute("INSERT INTO calls (msg_id, request_id, ts, hour, day, week, month, session_id, agent_id, project, "
+               "model, speed, input, output, cache_w5m, cache_w1h, cache_read, cost, effort) "
+               "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                (uuid.uuid4().hex, uuid.uuid4().hex, ts, h, day, wk, mo, sid, agent, project, model,
-                "standard", inp, out, 0, w1h, read, store.price(model, "standard", inp, out, 0, w1h, read)))
+                "standard", inp, out, 0, w1h, read, store.price(model, "standard", inp, out, 0, w1h, read), effort))
 
 
 def main(path):
