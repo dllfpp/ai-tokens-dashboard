@@ -201,6 +201,12 @@ def overview(db, grain="day", at=None, project=None, sort="new", pw=None):
 
     models = [dict(model=r["model"], name=model_name(r["model"]), **_tok(r))
               for r in db.execute(f"SELECT model, {TOK} FROM calls{sw} GROUP BY model ORDER BY inp+out+cw DESC", sa)]
+    efforts = {}
+    for r in db.execute(f"SELECT model, coalesce(effort, 'not recorded') AS effort, {TOK} FROM calls{sw} "
+                        f"GROUP BY 1, 2", sa):
+        efforts.setdefault(r["model"], {})[r["effort"]] = _tok(r)
+    for m in models:
+        m["efforts"] = efforts.get(m["model"], {})
 
     window = {}
     for per in split.values():

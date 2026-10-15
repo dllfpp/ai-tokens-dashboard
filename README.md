@@ -20,6 +20,8 @@ JavaScript, one SQLite file.
   48 h, 7 days, 30 days) and the latest conversation of each project; click a project to filter
   everything to it.
 - **Models**: new tokens, output, cache re-reads and calls per model.
+- **Effort by model**: share of each model's new tokens by the effort level it ran at (low, medium, high...).
+- **Plan limits charts**: for each limit, usage over the window against the even pace that reaches 100% at the reset.
 - **Conversations**: every conversation of the period, sortable by new tokens, output, calls or
   latest activity; five rows in view, the rest scroll.
 - **Conversation page**: totals, hour-by-hour or day-by-day use, folders and models it touched,
@@ -86,6 +88,7 @@ session can re-read tens of millions of tokens to produce a few hundred thousand
 | `/api/overview`, `/api/session/<id>`, `/api/caveman` | the same data as JSON |
 | `/api/report/today` | today's totals as short Telegram-ready HTML text (`{"text": ...}`) |
 | `/api/report/limits` | Claude plan limits (5-hour session, week, week per model) read live from Anthropic, with a forecast, as Telegram-ready HTML text |
+| `/api/report/limits.png` | the three plan-limit charts as one PNG (needs Pillow), to attach to a chat message |
 
 The server renders HTML, the chart is inline SVG with one link per bar, the page refreshes every
 60 seconds.

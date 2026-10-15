@@ -3,6 +3,7 @@
 Routes
   /?g=&at=&p=&sort=      the dashboard
   /s/<session>           one conversation
+  /theme/<auto|light|dark>  remember the colour theme in a cookie, back to the page it came from
   /style.css             the stylesheet (versioned by content hash, cached forever)
   /api/overview?g=&at=&p=, /api/session/<id>   JSON
 """
@@ -15,6 +16,7 @@ import threading
 import time
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.cookies import CookieError, SimpleCookie
 from urllib.parse import parse_qs, unquote, urlparse
 
 from . import caveman, fmt, limits, query, report, store
@@ -31,7 +33,7 @@ PUBLIC_URL = os.environ.get("TOKENDASH_PUBLIC_URL", "").rstrip("/")
 
 # logo, favicons, app icons, social image, manifest: name -> (bytes, content type, version)
 STATIC_DIR = os.path.join(os.path.dirname(view.__file__), "static")
-TYPES = {".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon",
+TYPES = {".js": "text/javascript; charset=utf-8", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon",
          ".webmanifest": "application/manifest+json"}
 ASSETS = {}
 for _name in sorted(os.listdir(STATIC_DIR)):
@@ -41,6 +43,8 @@ for _name in sorted(os.listdir(STATIC_DIR)):
 # where browsers and crawlers look without being told
 ALIASES = {"/favicon.ico": "favicon.ico", "/apple-touch-icon.png": "apple-touch-icon.png",
            "/site.webmanifest": "site.webmanifest"}
+
+THEMES = ("auto", "light", "dark")
 
 db = store.connect(DB_PATH)
 lock = threading.Lock()
@@ -88,6 +92,28 @@ class Handler(BaseHTTPRequestHandler):
         if not self.head_only:
             self.wfile.write(data)
 
+    def theme(self):
+        try:
+            c = SimpleCookie(self.headers.get("Cookie", ""))
+        except CookieError:
+            return "auto"
+        t = c["theme"].value if "theme" in c else "auto"
+        return t if t in THEMES else "auto"
+
+    def set_theme(self, t):
+        """Store the choice for a year, then go back to the page it came from (same site only)."""
+        back = urlparse(self.headers.get("Referer", ""))
+        here = urlparse(self.public_url())
+        to = (back.path or "/") + (f"?{back.query}" if back.query else "")
+        if back.netloc and back.netloc not in (here.netloc, self.headers.get("Host", "")):
+            to = "/"
+        self.send_response(303)
+        self.send_header("Location", to if to.startswith("/") and not to.startswith("//") else "/")
+        self.send_header("Set-Cookie", f"theme={t}; Path=/; Max-Age=31536000; SameSite=Lax")
+        self.send_header("Content-Length", "0")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+
     def public_url(self):
         """Absolute base for the social preview tags: TOKENDASH_PUBLIC_URL, else the address
         the browser used (scheme from the reverse proxy's X-Forwarded-Proto)."""
@@ -110,6 +136,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if path.startswith("/api/"):
                 return self.api(path, params)
+            if path.startswith("/theme/") and path[7:] in THEMES:
+                return self.set_theme(path[7:])
             if path == "/style.css":
                 return self.send(200, CSS, "text/css; charset=utf-8", "public, max-age=31536000, immutable")
             name = ALIASES.get(path) or (path[len("/static/"):] if path.startswith("/static/") else None)
@@ -119,7 +147,7 @@ class Handler(BaseHTTPRequestHandler):
                 data, ctype, ver = ASSETS[name]
                 cache = "public, max-age=31536000, immutable" if qs.get("v") == ver else "public, max-age=86400"
                 return self.send(200, data, ctype, cache)
-            u = fmt.Links("/", params, CSS_VERSION, {n: a[2] for n, a in ASSETS.items()}, self.public_url(), url.path)
+            u = fmt.Links("/", params, CSS_VERSION, {n: a[2] for n, a in ASSETS.items()}, self.public_url(), url.path, self.theme())
             if path == "/":
                 with lock:
                     ctx = query.overview(db, params["g"] or "day", params["at"], params["p"], params["sort"] or "new", params["pw"])
@@ -140,6 +168,15 @@ class Handler(BaseHTTPRequestHandler):
             pass
 
     def api(self, path, params):
+        if path == "/api/report/limits.png":  # the dashboard's three limit charts as one image
+            try:
+                lims = limits.fetch()
+            except OSError:
+                lims = limits.cached()
+            if not lims:
+                return self.send(502, '{"error":"plan limits unavailable"}', "application/json")
+            from . import limits_png  # Pillow is only needed here
+            return self.send(200, limits_png.render(lims), "image/png")
         if path == "/api/report/limits":  # live from Anthropic, no database
             try:
                 data = {"text": limits.text(limits.fetch())}

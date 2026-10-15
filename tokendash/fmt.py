@@ -91,8 +91,9 @@ SORTS = (("new", "New tokens"), ("output", "Output"), ("calls", "Calls"), ("rece
 class Links:
     """Links that keep the current filters. `base` is where the view is mounted."""
 
-    def __init__(self, base, params, css_version="", asset_versions=None, public_url="", path="/"):
+    def __init__(self, base, params, css_version="", asset_versions=None, public_url="", path="/", theme="auto"):
         self.base = base
+        self.theme = theme
         self.params = {k: v for k, v in params.items() if v}
         self.css = f"{base}style.css?v={css_version}"
         self.versions = asset_versions or {}

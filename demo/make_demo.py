@@ -87,6 +87,24 @@ def limits(path):
         json.dump({"limits": [{"kind": k, "percent": pc, "resets_at": r.isoformat(), "scope": sc}
                               for k, pc, r, sc in rows]}, f)
     print(f"invented plan limits in {path}")
+    # readings every 15 minutes from each window's start to now, uneven pace, ending at today's value
+    lengths = {"session": timedelta(hours=5)}
+    hist = os.path.splitext(path)[0] + "-history.jsonl"
+    rnd = random.Random(11)
+    bend = {k: rnd.uniform(0.7, 1.4) for k, *_ in rows}  # one curve per limit, never going down
+    with open(hist, "w") as f:
+        t = now - timedelta(days=7)
+        while t < now:
+            row = []
+            for k, pc, reset, _ in rows:
+                start = reset - lengths.get(k, timedelta(days=7))
+                if t >= start:
+                    share = (t - start) / (now - start)
+                    row.append({"kind": k, "percent": round(pc * share ** bend[k]),
+                                "resets_at": reset.isoformat()})
+            f.write(json.dumps({"at": t.isoformat(timespec="seconds"), "limits": row}) + "\n")
+            t += timedelta(minutes=15)
+    print(f"invented plan limit readings in {hist}")
 
 
 if __name__ == "__main__":

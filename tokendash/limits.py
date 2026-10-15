@@ -66,7 +66,58 @@ def _ask():
         os.replace(tmp, SHARED)
     except OSError:
         pass
+    _record(data)
     return data
+
+
+def _history_path():
+    return os.path.splitext(SHARED)[0] + "-history.jsonl"
+
+
+def _record(data):
+    """One line per fresh reading from Anthropic, for the usage-over-the-window charts."""
+    row = {"at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+           "limits": [{"kind": l.get("kind"), "percent": l.get("percent"), "resets_at": l.get("resets_at")}
+                      for l in data.get("limits", [])]}
+    try:
+        with open(_history_path(), "a") as f:
+            f.write(json.dumps(row) + "\n")
+    except OSError:
+        pass
+
+
+def window(lim):
+    """(start, reset) of the limit's current window, as aware datetimes; None without a reset."""
+    if not lim["resets_at"]:
+        return None
+    reset = datetime.fromisoformat(lim["resets_at"])
+    return reset - WINDOW.get(lim["kind"], timedelta(days=7)), reset
+
+
+def history(lim):
+    """Readings of this limit inside its current window: [(datetime, percent)], oldest first.
+    Demo mode reads TOKENDASH_LIMITS_HISTORY instead."""
+    w = window(lim)
+    if not w:
+        return []
+    path = os.environ.get("TOKENDASH_LIMITS_HISTORY") if SAVED else _history_path()
+    out = []
+    try:
+        with open(path) as f:
+            for line in f:
+                try:
+                    row = json.loads(line)
+                    at = datetime.fromisoformat(row["at"])
+                except (ValueError, KeyError):
+                    continue
+                if not w[0] <= at <= w[1]:
+                    continue
+                for l in row.get("limits", []):
+                    if l.get("kind") == lim["kind"] and l.get("percent") is not None:
+                        out.append((at, float(l["percent"])))
+    except (OSError, TypeError):
+        pass
+    return out
 
 
 def _stale(err):

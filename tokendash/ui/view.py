@@ -1,10 +1,10 @@
 """Argilla: claymorphism. New tokens as clay pebbles that grow from the hour to the month.
 Main figure everywhere: new tokens (input + cache write + output). Cache reads, the history sent
 again on every call, are shown beside it as re-reads."""
-from datetime import datetime
+from datetime import datetime, timezone
 
 from tokendash.caveman import BEFORE_DAYS
-from tokendash.limits import forecast
+from tokendash.limits import forecast, history, window
 from tokendash.store import to_local
 from tokendash.query import PROJECT_WINDOWS
 from tokendash.fmt import (CLOUDCLI_URL, GRAIN_NAMES, KIND, SIGNATURE, SORTS, TOKEN_NOTE, bar_chart, change, clock, count,
@@ -13,13 +13,16 @@ from tokendash.fmt import (CLOUDCLI_URL, GRAIN_NAMES, KIND, SIGNATURE, SORTS, TO
 FONTS = ("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700"
          "&family=Nunito:wght@700;800;900&display=swap")
 
+GSAP = "https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/"
+
 NAME = "DASHBOARD: AI TOKENS"
 DESCRIPTION = "Claude Code tokens per project and conversation, by hour, day, week and month."
 
 
 def shell(title, u, body, description=DESCRIPTION):
     full = NAME if title == NAME else f"{title} - {NAME}"
-    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+    attr = f' data-theme="{u.theme}"' if u.theme != "auto" else ""
+    return f"""<!doctype html><html lang="en"{attr}><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="60"><title>{esc(full)}</title>
 <meta name="description" content="{esc(description)}">
@@ -29,8 +32,7 @@ def shell(title, u, body, description=DESCRIPTION):
 <link rel="icon" href="{u.asset("favicon-32.png")}" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="{u.asset("apple-touch-icon.png")}" sizes="180x180">
 <link rel="manifest" href="{u.asset("site.webmanifest")}">
-<meta name="theme-color" content="#e7e3f4" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#231e36" media="(prefers-color-scheme: dark)">
+{theme_color(u)}
 <meta name="application-name" content="{NAME}"><meta name="apple-mobile-web-app-title" content="AI TOKENS">
 <meta property="og:type" content="website"><meta property="og:site_name" content="{NAME}">
 <meta property="og:title" content="{esc(full)}"><meta property="og:description" content="{esc(description)}">
@@ -43,8 +45,28 @@ def shell(title, u, body, description=DESCRIPTION):
 <meta name="twitter:description" content="{esc(description)}">
 <meta name="twitter:image" content="{u.asset("og.png", absolute=True)}">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="{FONTS}">
-<link rel="stylesheet" href="{u.css}"></head><body><div class="page">{body}
+<link rel="stylesheet" href="{u.css}">
+<script src="{GSAP}gsap.min.js" defer></script><script src="{GSAP}ScrollTrigger.min.js" defer></script>
+<script src="{u.asset("motion.js")}" defer></script></head><body><div class="page">{body}
 <footer><p>{esc(TOKEN_NOTE)}</p>{SIGNATURE}</footer></div></body></html>"""
+
+
+THEME_COLORS = {"light": "#e7e3f4", "dark": "#231e36"}
+
+
+def theme_color(u):
+    if u.theme in THEME_COLORS:
+        return f'<meta name="theme-color" content="{THEME_COLORS[u.theme]}">'
+    return "".join(f'<meta name="theme-color" content="{c}" media="(prefers-color-scheme: {t})">'
+                   for t, c in THEME_COLORS.items())
+
+
+def theme_switch(u):
+    """Colour theme: follow the system, or force light or dark. A plain link, remembered in a cookie."""
+    names = (("auto", "Auto"), ("light", "Light"), ("dark", "Dark"))
+    return '<nav class="sorts" aria-label="Colour theme">' + "".join(
+        f'<a href="{esc(u.base)}theme/{t}"{" aria-current=page" if t == u.theme else ""}>{name}</a>'
+        for t, name in names) + "</nav>"
 
 
 def brand(u, tag="h1"):
@@ -141,6 +163,65 @@ def caveman_block(c, u):
 LIMIT_NAMES = {"session": "Session, 5 hours", "weekly_all": "Week, all models"}
 
 
+EFFORTS = (("low", "p1"), ("medium", "p2"), ("high", "p4"), ("xhigh", "p0"), ("max", "p5"), ("not recorded", "p6"))
+
+
+def effort_block(ctx):
+    """Per model, one bar split by the effort level Claude Code asked for, sized by new tokens."""
+    rows = [m for m in ctx["models"] if m["new"]]
+    if not rows:
+        return ""
+    seen = {e for m in rows for e in m["efforts"]}
+    order = [(e, c) for e, c in EFFORTS if e in seen] + [(e, "p6") for e in sorted(seen) if e not in dict(EFFORTS)]
+    bars = []
+    for m in rows:
+        segs, parts = [], []
+        for e, c in order:
+            t = m["efforts"].get(e)
+            if not t or not t["new"]:
+                continue
+            pc = t["new"] / m["new"] * 100
+            segs.append(f'<span class="{c}" style="width:{pc:.2f}%" title="{esc(e)}: {count(t["new"])} new tokens, '
+                        f'{count(t["calls"])} calls"></span>')
+            parts.append(f"{esc(e)} {pc:.0f}%")
+        bars.append(f'<li><span class="name">{esc(m["name"])}</span><span class="num">{tokens(m["new"])}</span>'
+                    f'<span class="stack">{"".join(segs)}</span><span class="sub">{", ".join(parts)}</span></li>')
+    legend_ = "".join(f'<li><i class="sw {c}"></i>{esc(e)}</li>' for e, c in order)
+    return f"""<section class="tray effort-tray"><div class="tray-head"><h2>Effort by model <small>{esc(ctx["scope_label"])}</small></h2>
+<p>Share of each model's new tokens by the effort level it ran at.</p></div>
+<ul class="efforts">{"".join(bars)}</ul><ul class="legend">{legend_}</ul></section>"""
+
+
+def limit_chart(lim):
+    """The window from start to reset: dashed line = the most you can use at an even pace
+    (0% at the start, 100% at the reset), solid = what was actually used, dot = now."""
+    w = window(lim)
+    if not w:
+        return ""
+    start, reset = w
+    span = (reset - start).total_seconds()
+    W, H = 300, 120
+
+    def pt(at, pc):
+        x = max(0.0, min((at - start).total_seconds() / span, 1.0)) * W
+        return f"{x:.1f},{H - max(0.0, min(pc, 100.0)) / 100 * H:.1f}"
+
+    now = datetime.now(timezone.utc)
+    pts = history(lim) + [(now, float(lim["percent"]))]
+    actual = " ".join(pt(a, p) for a, p in pts)
+    over = "over" if lim["percent"] > (now - start).total_seconds() / span * 100 else ""
+    nx, ny = pt(now, float(lim["percent"])).split(",")
+    return (f'<svg class="lim-chart {over}" viewBox="0 0 {W} {H}" preserveAspectRatio="none" role="img" '
+            f'aria-label="Used {lim["percent"]:.0f}% so far, against the even pace">'
+            f'<line class="grid" x1="0" y1="{H / 2}" x2="{W}" y2="{H / 2}"/>'
+            f'<line class="max" x1="0" y1="{H}" x2="{W}" y2="0"/>'
+            f'<line class="nowline" x1="{nx}" y1="0" x2="{nx}" y2="{H}"/>'
+            f'<polyline class="actual" points="{actual}"/>'
+            f'<circle class="dot" cx="{nx}" cy="{ny}" r="4"/></svg>'
+            f'<span class="lim-axis"><span>{to_local(start).strftime("%a %-d %b, %H:%M")}</span>'
+            f'<span>{to_local(reset).strftime("%a %-d %b, %H:%M")}</span></span>')
+
+
 def limit_pebble(lim):
     """One plan limit: percent used, a gauge, the reset and where the pace leads."""
     pc = max(0, min(lim["percent"], 100))
@@ -157,7 +238,7 @@ def limit_pebble(lim):
         chg = f'<span class="chg down">about {min(f["at_reset"], 100):.0f}% at reset<small>at this pace</small></span>'
     return (f'<li class="pebble"><span class="ttl">{esc(name)}</span><strong>{pc:.0f}%</strong>'
             f'<span class="fill" role="img" aria-label="{pc:.0f}% used"><span class="{bar}" style="width:{pc:.1f}%"></span></span>'
-            f'<span class="tok">resets {reset}</span>{chg}</li>')
+            f'<span class="tok">resets {reset}</span>{limit_chart(lim)}{chg}</li>')
 
 
 def limits_block(lims):
@@ -165,7 +246,7 @@ def limits_block(lims):
     if not lims:
         return ""
     return f"""<section class="tray limits-tray"><div class="tray-head"><h2>Claude plan limits <small>live from Anthropic</small></h2>
-<p>How much of each plan limit is used, and where the average pace of the window leads by its reset.</p></div>
+<p>How much of each plan limit is used. Chart: solid line = used, dashed = the most you can use at an even pace to reach 100% exactly at the reset.</p></div>
 <ol class="pebbles limits">{"".join(limit_pebble(l) for l in lims)}</ol></section>"""
 
 
@@ -205,7 +286,7 @@ def overview(ctx, u, cav=None, lims=None):
 
     g = ctx["grain"]
     body = f"""
-<header class="top">{brand(u)}{grain_switch(ctx, u)}</header>
+<header class="top">{brand(u)}{grain_switch(ctx, u)}{theme_switch(u)}</header>
 {pebbles(ctx)}
 <section class="tray chart-tray">
   <div class="tray-head"><h2>{esc(ctx["scope_label"] if not ctx["at"] else ctx["window_label"])}</h2>
@@ -222,6 +303,7 @@ def overview(ctx, u, cav=None, lims=None):
 <p class="tot"><b>{count(scope["new"])}</b> new tokens over {count(scope["calls"])} calls<br>{split(scope)}<br>
 plus {count(scope["cr"])} re-read from cache</p></section>
 </div>
+{effort_block(ctx)}
 <section class="tray convs" id="conversations"><div class="tray-head"><h2>Conversations <small>{ctx["n_sessions"]} in {esc(ctx["scope_label"].lower() if not ctx["at"] else ctx["scope_label"])}</small></h2>{sort_switch(ctx, u)}</div>
 <div class="scroll conv-list"><table><thead><tr><th>Conversation</th><th class="n">Output</th><th class="n">Re-read</th><th class="n">Last active</th><th class="n">New tokens</th></tr></thead>
 <tbody>{rows or '<tr><td colspan=5 class="none">No conversations in this period.</td></tr>'}</tbody></table></div>
@@ -246,7 +328,7 @@ def session(s, u):
     chips = "".join(f'<li><b>{esc(p["label"])}</b> {tokens(p["new"])}</li>' for p in s["projects"])
     models = "".join(f'<li><b>{esc(m["name"])}</b> {tokens(m["new"])}</li>' for m in s["models"])
     body = f"""
-<header class="top">{brand(u, "div")}</header>
+<header class="top">{brand(u, "div")}{theme_switch(u)}</header>
 <section class="slab hero-s"><h1>{esc(s["title"])}</h1>
 <p>{KIND.get(s["kind"], s["kind"])}, {clock(s["first_ts"])} to {clock(s["last_ts"])}, {count(t["calls"])} calls</p>
 {f'<p class="cc-open">{cc_link(s, u, "Open this conversation in CloudCLI")}</p>' if s.get("cc_id") and CLOUDCLI_URL else ""}
@@ -263,7 +345,7 @@ def session(s, u):
 
 def caveman_page(c, u):
     if c is None:
-        body = f"""<header class="top">{brand(u, "div")}</header>
+        body = f"""<header class="top">{brand(u, "div")}{theme_switch(u)}</header>
 <section class="slab hero-s"><h1>Caveman savings</h1><p>No caveman proxy data on this machine
 (~/.caveman/caveman.db is missing or empty). Turn the proxy on, then this page fills itself.</p></section>"""
         return shell("Caveman savings", u, body)
@@ -287,7 +369,7 @@ def caveman_page(c, u):
         for x in c["sessions"])
     compress = (f'{count(p["compressed"])} requests had a block compressed: {count(p["cbefore"])} tokens became '
                 f'{count(p["cafter"])}.' if p["compressed"] else "No request has had a block compressed yet.")
-    body = f"""<header class="top">{brand(u, "div")}</header>
+    body = f"""<header class="top">{brand(u, "div")}{theme_switch(u)}</header>
 <section class="slab hero-s"><h1>Caveman savings</h1>
 <p>On since {clock(c["since"])}. Two separate effects, measured in two different ways.</p>
 {caveman_pebbles(c)}</section>

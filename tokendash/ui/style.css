@@ -15,14 +15,27 @@
   --display: "Nunito", ui-rounded, system-ui, sans-serif;
   --text: "DM Sans", system-ui, sans-serif;
 }
+/* dark: forced by the header switch (data-theme="dark"), or automatic when the system is dark
+   and the switch is not set to light */
+:root { color-scheme: light; }
+:root[data-theme="dark"] {
+  --bg: #231e36; --surface: #2e2846; --well: #1b172b; --ink: #f1edff; --ink-soft: #b8afd6; --line: #443c63;
+  --up: #ff8fa6; --down: #7fe0b0;
+  --p0: #e98676; --p1: #6aaedc; --p2: #63c08e; --p3: #9a83e6; --p4: #e2b74f; --p5: #dc7cab; --p6: #6f6890;
+  --hi: inset -3px -4px 8px rgba(255,255,255,.06);
+  --lo: 6px 8px 18px rgba(0,0,0,.45);
+  --press: inset 4px 5px 10px rgba(0,0,0,.45), inset -3px -3px 8px rgba(255,255,255,.05);
+  color-scheme: dark;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #231e36; --surface: #2e2846; --well: #1b172b; --ink: #f1edff; --ink-soft: #b8afd6; --line: #443c63;
     --up: #ff8fa6; --down: #7fe0b0;
     --p0: #e98676; --p1: #6aaedc; --p2: #63c08e; --p3: #9a83e6; --p4: #e2b74f; --p5: #dc7cab; --p6: #6f6890;
     --hi: inset -3px -4px 8px rgba(255,255,255,.06);
     --lo: 6px 8px 18px rgba(0,0,0,.45);
     --press: inset 4px 5px 10px rgba(0,0,0,.45), inset -3px -3px 8px rgba(255,255,255,.05);
+    color-scheme: dark;
   }
 }
 * { box-sizing: border-box; }
@@ -209,3 +222,23 @@ td.t span a.cc, .projects .latest a.cc { display: inline; padding: 0; border-rad
 /* conversations: about five rows in view, header stays on top while scrolling */
 .conv-list { max-height: var(--convs-h, 380px); overflow-y: auto; overscroll-behavior: contain; }
 .conv-list thead th { position: sticky; top: 0; z-index: 1; background: var(--well); padding-top: 6px; padding-bottom: 6px; }
+/* plan limit chart: used (solid) against the even pace to 100% at reset (dashed) */
+.lim-chart { display: block; width: 100%; height: 110px; margin: 10px 0 2px; background: var(--well); border-radius: 14px; box-shadow: var(--press); overflow: visible; }
+.lim-chart line, .lim-chart polyline { vector-effect: non-scaling-stroke; fill: none; }
+.lim-chart .grid { stroke: var(--line); stroke-width: 1; }
+.lim-chart .max { stroke: var(--ink-soft); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.lim-chart .nowline { stroke: var(--line); stroke-width: 1; }
+.lim-chart .actual { stroke: var(--p3); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.lim-chart.over .actual, .lim-chart.over .dot { stroke: var(--up); fill: var(--up); }
+.lim-chart .dot { fill: var(--p3); }
+.lim-axis { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--ink-soft); }
+/* effort by model: one stacked bar per model */
+.efforts { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.efforts li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 10px 14px; background: var(--surface); border-radius: var(--r-sm); }
+.efforts .name { font: 900 15px var(--display); }
+.efforts .num { font: 900 15px var(--display); font-variant-numeric: tabular-nums; }
+.efforts .stack { grid-column: 1 / -1; display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--well); }
+.efforts .stack > span { display: block; height: 100%; }
+.efforts .stack .p0 { background: var(--p0); } .efforts .stack .p1 { background: var(--p1); } .efforts .stack .p2 { background: var(--p2); }
+.efforts .stack .p4 { background: var(--p4); } .efforts .stack .p5 { background: var(--p5); } .efforts .stack .p6 { background: var(--p6); }
+.efforts .sub { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-soft); }

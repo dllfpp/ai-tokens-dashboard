@@ -138,6 +138,10 @@ def connect(path):
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA journal_mode=WAL")
     db.executescript(SCHEMA)
+    if "effort" not in [r[1] for r in db.execute("PRAGMA table_info(calls)")]:
+        # effort level Claude Code asked for (low/medium/high/...): re-read every transcript once to fill it
+        db.execute("ALTER TABLE calls ADD COLUMN effort TEXT")
+        db.execute("DELETE FROM files")
     if "grp" not in [r[1] for r in db.execute("PRAGMA table_info(calls)")]:
         db.execute("ALTER TABLE calls ADD COLUMN grp TEXT")
         db.execute("CREATE INDEX IF NOT EXISTS calls_grp ON calls(grp)")
@@ -259,12 +263,15 @@ def _ingest_line(db, d, agent_id):
             db.execute("UPDATE sessions SET entrypoint=coalesce(entrypoint,?), kind=coalesce(kind,?) "
                        "WHERE session_id=?", (ep, kind, sid))
         cur = db.execute(
-            "INSERT INTO calls VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL) "
-            "ON CONFLICT(msg_id, request_id) DO UPDATE SET output=excluded.output, cost=excluded.cost "
-            "WHERE excluded.output > output",
+            "INSERT INTO calls (msg_id, request_id, ts, hour, day, week, month, session_id, agent_id, project, "
+            "model, speed, input, output, cache_w5m, cache_w1h, cache_read, cost, effort) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
+            "ON CONFLICT(msg_id, request_id) DO UPDATE SET output=max(output, excluded.output), "
+            "cost=max(cost, excluded.cost), effort=coalesce(effort, excluded.effort) "
+            "WHERE excluded.output > output OR (effort IS NULL AND excluded.effort IS NOT NULL)",
             (m.get("id"), d.get("requestId") or "", dt.timestamp(), h, day, wk, mo, sid, agent_id,
              project_of(cwd), model_key(model), speed, inp, out, w5, w1h, read,
-             price(model, speed, inp, out, w5, w1h, read)))
+             price(model, speed, inp, out, w5, w1h, read), d.get("effort")))
         return cur.rowcount
     return 0
 
