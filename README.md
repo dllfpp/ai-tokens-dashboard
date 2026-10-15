@@ -42,10 +42,33 @@ python3 -m demo.make_demo data/demo.db
 TOKENDASH_DB=data/demo.db TOKENDASH_LIMITS_JSON=data/demo-limits.json CLAUDE_DIR=/nonexistent python3 -m tokendash.server
 ```
 
-## Requirements
+## Install
 
-Python 3.12 or newer, nothing to install. Claude Code on the same machine (the dashboard reads its
-transcripts). OpenRC only for the bundled service script; any process manager works.
+On the machine where you use Claude Code (Linux or macOS), with Python 3.12 or newer and nothing
+else to install:
+
+```sh
+git clone https://github.com/dllfpp/ai-tokens-dashboard.git
+cd ai-tokens-dashboard
+sudo python3 -m tokendash.setup      # or without sudo, to skip the service
+```
+
+The setup wizard:
+
+1. checks Python, the Claude Code transcripts of your user, the Claude Code login (for the plan
+   limits) and Pillow (only for the limits image), and says what to do about anything missing;
+2. asks for the time zone (proposes the system one), the port, the data folder, the Claude Code
+   folder and, if you use them, the public address and CloudCLI;
+3. saves the answers in `tokendash.env` next to the code (run the wizard again to change them);
+4. installs a service that starts with the machine and runs as your user: systemd, OpenRC or
+   launchd on macOS. Without root, or on other systems, it prints the command to start it by hand;
+5. starts it and checks the dashboard answers, then prints the address to open.
+
+`python3 -m tokendash.setup --yes` takes every proposal without asking. Tested on a clean
+Debian 13 with and without systemd. Debian 12 ships Python 3.11, which is too old.
+
+The dashboard has no login and shows project names and conversation titles: put it behind a
+reverse proxy with authentication if it should be reachable from other machines.
 
 ## New tokens and cache re-reads
 
@@ -72,7 +95,7 @@ session can re-read tens of millions of tokens to produce a few hundred thousand
   counts are a lower bound.
 - **API-equivalent cost** (not on the page, only in the JSON API as `cost`): Anthropic list prices
   in `tokendash/store.py` (`PRICES`), cache write 5 min 1.25x and 1 h 2x input, fast mode 2x.
-- **Time**: Central European Time, with the EU daylight-saving rule built in (works without tzdata).
+- **Time**: the time zone chosen in the wizard (`TOKENDASH_TZ`), else the system one.
 
 ## Pages
 
@@ -137,6 +160,8 @@ python3 -m tokendash.server    # dashboard on :3020, re-imports every 30 s
 
 | Variable | Default | |
 |---|---|---|
+| `TOKENDASH_TZ` | system zone | IANA time zone for hours, days and weeks |
+| `TOKENDASH_CONFIG` | `tokendash.env` next to the code | settings file written by the wizard |
 | `TOKENDASH_PORT` | `3020` | listening port |
 | `TOKENDASH_DB` | `data/usage.db` | the dashboard's own database |
 | `TOKENDASH_INTERVAL` | `30` | seconds between imports |
@@ -144,18 +169,7 @@ python3 -m tokendash.server    # dashboard on :3020, re-imports every 30 s
 | `CLAUDE_DIR` | `~/.claude` | where Claude Code keeps its transcripts |
 | `CLOUDCLI_DB`, `CLOUDCLI_URL` | empty | CloudCLI integration |
 | `CAVEMAN_DB` | `~/.caveman/caveman.db` | caveman integration |
-| `TOKENDASH_LIMITS_CACHE` | `/opt/token-dashboard/data/limits-cache.json` | plan limits reply shared by all callers |
-
-## Deploy with OpenRC
-
-```sh
-sh deploy/deploy.sh   # copies to /opt/token-dashboard, installs /etc/init.d/tokendash, restarts
-```
-
-Put local settings in `/etc/conf.d/tokendash` (`export VARIABLE=value` lines), not in the
-repository. The service reads the transcripts of the user it runs as. Put it behind a reverse
-proxy if it should be reachable from other machines; the dashboard itself has no login, and it
-shows project names and conversation titles.
+| `TOKENDASH_LIMITS_CACHE` | `limits-cache.json` next to the database | plan limits reply shared by all callers |
 
 ## Brand and design
 

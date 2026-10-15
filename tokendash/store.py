@@ -64,19 +64,44 @@ def price(model, speed, inp, out, w5, w1h, read):
                 + w1h * p["in"] * 2.0 + read * p["read"]) / 1e6
 
 
-# ---- Central European Time without tzdata: CEST from the last Sunday of March 01:00 UTC
-# to the last Sunday of October 01:00 UTC (EU rule), CET otherwise.
+# ---- Local time. TOKENDASH_TZ (an IANA name such as "America/New_York") wins; without it the
+# system's own zone is used. If the name cannot be loaded (no tzdata), Central European Time is
+# computed with the EU daylight-saving rule as a last resort.
+TZ_NAME = os.environ.get("TOKENDASH_TZ", "").strip()
+
+
+def _zone():
+    if not TZ_NAME:
+        return None  # system zone
+    try:
+        from zoneinfo import ZoneInfo
+        return ZoneInfo(TZ_NAME)
+    except Exception:  # unknown name or no tzdata
+        print(f"TOKENDASH_TZ={TZ_NAME!r} cannot be loaded, falling back to Central European Time")
+        return "eu"
+
+
+ZONE = _zone()
+
+
 def _last_sunday(year, month):
     d = datetime(year, month + 1, 1, tzinfo=timezone.utc) - timedelta(days=1)
     return d - timedelta(days=(d.weekday() + 1) % 7)
 
 
-def to_local(dt_utc):
+def _cet(dt_utc):
     y = dt_utc.year
     start = _last_sunday(y, 3).replace(hour=1)
     end = _last_sunday(y, 10).replace(hour=1)
     off = 2 if start <= dt_utc < end else 1
     return (dt_utc + timedelta(hours=off)).replace(tzinfo=None)
+
+
+def to_local(dt_utc):
+    """Aware UTC datetime -> naive local wall time."""
+    if ZONE == "eu":
+        return _cet(dt_utc)
+    return dt_utc.astimezone(ZONE).replace(tzinfo=None)
 
 
 def now_local():

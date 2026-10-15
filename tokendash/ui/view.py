@@ -1,6 +1,7 @@
 """Argilla: claymorphism. New tokens as clay pebbles that grow from the hour to the month.
 Main figure everywhere: new tokens (input + cache write + output). Cache reads, the history sent
 again on every call, are shown beside it as re-reads."""
+import os
 from datetime import datetime, timezone
 
 from tokendash.caveman import BEFORE_DAYS
@@ -244,7 +245,10 @@ def limit_pebble(lim):
 def limits_block(lims):
     """Claude plan limits, live from Anthropic; hidden when they cannot be read."""
     if not lims:
-        return ""
+        return ("""<section class="tray limits-tray"><div class="tray-head"><h2>Claude plan limits</h2>
+<p>Not available: no Claude Code login could be read, or Anthropic asked to wait. Log in with
+<code>claude</code> then <code>/login</code> on this machine; the box fills itself within the hour.</p></div></section>"""
+                if not os.environ.get("TOKENDASH_HIDE_LIMITS") else "")
     return f"""<section class="tray limits-tray"><div class="tray-head"><h2>Claude plan limits <small>live from Anthropic</small></h2>
 <p>How much of each plan limit is used. Chart: solid line = used, dashed = the most you can use at an even pace to reach 100% exactly at the reset.</p></div>
 <ol class="pebbles limits">{"".join(limit_pebble(l) for l in lims)}</ol></section>"""

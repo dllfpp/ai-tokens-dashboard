@@ -2,6 +2,8 @@
 as Telegram HTML text."""
 import json
 import os
+import subprocess
+import sys
 import threading
 import time
 import urllib.error
@@ -25,7 +27,9 @@ _cache_lock = threading.Lock()
 
 # One reply shared by every caller (dashboard, bot buttons, alert cron): Anthropic answers 429
 # when asked too often. Fresher than MIN_AGE = reused; on any error the last good reply is used.
-SHARED = os.environ.get("TOKENDASH_LIMITS_CACHE", "/opt/token-dashboard/data/limits-cache.json")
+_DB = os.environ.get("TOKENDASH_DB") or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "usage.db")
+SHARED = os.environ.get("TOKENDASH_LIMITS_CACHE") or os.path.join(os.path.dirname(os.path.abspath(_DB)), "limits-cache.json")
+os.makedirs(os.path.dirname(SHARED), exist_ok=True)
 MIN_AGE = 120
 
 
@@ -46,8 +50,7 @@ def _ask():
     if paused:
         return _stale("Anthropic asked to wait before reading the limits again")
     try:
-        with open(os.path.join(CLAUDE_DIR, ".credentials.json")) as f:
-            token = json.load(f)["claudeAiOauth"]["accessToken"]
+        token = access_token()
         req = urllib.request.Request(URL, headers={"Authorization": "Bearer " + token,
                                                    "anthropic-beta": "oauth-2025-04-20"})
         with urllib.request.urlopen(req, timeout=30) as r:
@@ -118,6 +121,21 @@ def history(lim):
     except (OSError, TypeError):
         pass
     return out
+
+
+def access_token():
+    """Claude Code's OAuth token: ~/.claude/.credentials.json on Linux, the login keychain on macOS."""
+    try:
+        with open(os.path.join(CLAUDE_DIR, ".credentials.json")) as f:
+            return json.load(f)["claudeAiOauth"]["accessToken"]
+    except (OSError, ValueError, KeyError):
+        if sys.platform != "darwin":
+            raise
+    out = subprocess.run(["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
+                         capture_output=True, text=True, timeout=10)
+    if out.returncode:
+        raise OSError("no Claude Code login found in the macOS keychain")
+    return json.loads(out.stdout)["claudeAiOauth"]["accessToken"]
 
 
 def _stale(err):
