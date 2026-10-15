@@ -1,4 +1,4 @@
-"""Step-by-step setup: checks what the dashboard needs, asks for the settings, writes them to
+"""Step-by-step setup, for Claude Code used from the command line on Linux (not the desktop apps): checks what the dashboard needs, asks for the settings, writes them to
 tokendash.env and, if you want, installs a service that starts it with the machine.
 
   python3 -m tokendash.setup            ask every question
@@ -100,6 +100,8 @@ def port_free(port):
 REQUIREMENTS = """What the dashboard needs. Prepare these before you start.
 
   Required
+    - Linux, with Claude Code used from the command line (`claude`). The desktop apps for
+      Windows and macOS are not supported.
     - Python 3.12 or newer (no Python packages to install)
     - Claude Code used on this machine by the user the dashboard will run as:
       it reads the conversations Claude Code writes in ~/.claude/projects
@@ -112,7 +114,7 @@ REQUIREMENTS = """What the dashboard needs. Prepare these before you start.
       to attach to a chat message
     - tzdata (time zone database), when the system has no /usr/share/zoneinfo:
       needed to count hours in a zone other than the system one
-    - root or sudo, with systemd, OpenRC or macOS launchd: a service that starts with the machine
+    - root or sudo, with systemd or OpenRC: a service that starts with the machine
     - CloudCLI: conversation names from CloudCLI and links to open them there
     - the caveman proxy: the /caveman savings page
     - a reverse proxy with a login, if the dashboard must be reachable from other machines
@@ -165,11 +167,11 @@ def check(cfg):
     except Exception:
         say(f"{NOTE}no time zone database: only the system zone works"
             " (Debian/Ubuntu: apt install tzdata, Alpine: apk add tzdata, else pip install tzdata)")
-    manager = ("launchd" if sys.platform == "darwin" else "systemd" if os.path.isdir("/run/systemd/system")
+    manager = ("systemd" if os.path.isdir("/run/systemd/system")
                else "OpenRC" if shutil.which("openrc-run") or os.path.exists("/sbin/openrc-run") else None)
     if not manager:
-        say(f"{NOTE}no systemd, OpenRC or launchd: start the dashboard by hand or with your own tool")
-    elif sys.platform != "darwin" and os.geteuid() != 0:
+        say(f"{NOTE}no systemd or OpenRC: start the dashboard by hand or with your own tool")
+    elif os.geteuid() != 0:
         say(f"{NOTE}{manager} found, but not running as root: run again with sudo to install the service")
     else:
         say(f"{GOOD}{manager} found: the dashboard can start with the machine")
@@ -231,9 +233,7 @@ def write(cfg):
 def service(cfg):
     py, user = sys.executable, getpass.getuser()
     say("\n4. Start with the machine")
-    if sys.platform == "darwin":
-        kind = "launchd"
-    elif os.path.isdir("/run/systemd/system"):
+    if os.path.isdir("/run/systemd/system"):
         kind = "systemd"
     elif shutil.which("openrc-run") or os.path.exists("/sbin/openrc-run"):
         kind = "openrc"
@@ -242,7 +242,7 @@ def service(cfg):
     if not kind or not yes(f"Install a {kind} service" if kind else "", True):
         say(f"{NOTE}no service installed. Start it by hand with:\n    cd {ROOT} && {py} -m tokendash.server")
         return None
-    if kind != "launchd" and os.geteuid() != 0:
+    if os.geteuid() != 0:
         say(f"{NOTE}installing a {kind} service needs root: run this again with sudo, or start it by hand with\n"
             f"    cd {ROOT} && {py} -m tokendash.server")
         return None
@@ -284,22 +284,6 @@ depend() {{ need net; }}
         os.chmod("/etc/init.d/tokendash", 0o755)
         subprocess.run(["rc-update", "add", "tokendash", "default"], check=False)
         subprocess.run(["rc-service", "tokendash", "restart"], check=True)
-    else:
-        plist = os.path.expanduser("~/Library/LaunchAgents/dev.tokendash.plist")
-        os.makedirs(os.path.dirname(plist), exist_ok=True)
-        with open(plist, "w") as f:
-            f.write(f"""<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-<key>Label</key><string>dev.tokendash</string>
-<key>ProgramArguments</key><array><string>{py}</string><string>-m</string><string>tokendash.server</string></array>
-<key>WorkingDirectory</key><string>{ROOT}</string>
-<key>EnvironmentVariables</key><dict><key>TOKENDASH_CONFIG</key><string>{CONFIG}</string></dict>
-<key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
-</dict></plist>
-""")
-        subprocess.run(["launchctl", "unload", plist], capture_output=True)
-        subprocess.run(["launchctl", "load", plist], check=True)
     say(f"{GOOD}{kind} service installed and started")
     return kind
 
@@ -329,6 +313,10 @@ def verify(cfg, started):
 
 
 def main():
+    if not sys.platform.startswith("linux"):
+        say("This setup is for Linux, with Claude Code used from the command line. "
+            "The Windows and macOS desktop apps are not supported.")
+        sys.exit(1)
     say("DASHBOARD: AI TOKENS, setup\n")
     say(REQUIREMENTS)
     cfg = saved()

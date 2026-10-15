@@ -52,6 +52,7 @@ Prepare these before you start. The wizard checks each one and says what is miss
 
 | | |
 |---|---|
+| Linux | with Claude Code used from the command line (`claude`). The Claude desktop apps for Windows and macOS are not supported |
 | Python 3.12 or newer | no Python packages to install. Debian 12 ships 3.11, too old: use Debian 13, Ubuntu 24.04 or newer |
 | Claude Code | used on this machine by the user the dashboard will run as: the dashboard reads the conversations it writes in `~/.claude/projects` |
 | a free TCP port | 3020 by default |
@@ -61,17 +62,17 @@ Prepare these before you start. The wizard checks each one and says what is miss
 
 | | Turns on | How to get it |
 |---|---|---|
-| Claude Code login + access to `api.anthropic.com` | Claude plan limits box and charts | `claude`, then `/login`, as the same user. On macOS the login in the Keychain is used |
+| Claude Code login + access to `api.anthropic.com` | Claude plan limits box and charts | `claude`, then `/login`, as the same user (read from `~/.claude/.credentials.json`) |
 | Pillow | limits as a PNG image for chat messages (`/api/report/limits.png`) | `apt install python3-pil`, `apk add py3-pillow`, or `pip install pillow` |
 | tzdata (time zone database) | counting hours in a zone other than the system one | `apt install tzdata`, `apk add tzdata`, or `pip install tzdata`, when there is no `/usr/share/zoneinfo` |
-| root or sudo, with systemd, OpenRC or macOS launchd | a service that starts with the machine | without it, start the dashboard by hand or with your own tool |
+| root or sudo, with systemd or OpenRC | a service that starts with the machine | without it, start the dashboard by hand or with your own tool |
 | CloudCLI | conversation names from CloudCLI, links to open them there | its `data/auth.db` and web address |
 | caveman proxy | the `/caveman` savings page | `~/.caveman/caveman.db` |
 | a reverse proxy with a login | reaching the dashboard from other machines | the dashboard itself has no login |
 
 ### Run the wizard
 
-On the machine where you use Claude Code (Linux or macOS):
+On the Linux machine where you use Claude Code from the command line:
 
 ```sh
 git clone https://github.com/dllfpp/ai-tokens-dashboard.git
@@ -86,8 +87,8 @@ The setup wizard:
 2. asks for the time zone (proposes the system one), the port, the data folder, the Claude Code
    folder and, if you use them, the public address and CloudCLI;
 3. saves the answers in `tokendash.env` next to the code (run the wizard again to change them);
-4. installs a service that starts with the machine and runs as your user: systemd, OpenRC or
-   launchd on macOS. Without root, or on other systems, it prints the command to start it by hand;
+4. installs a service that starts with the machine and runs as your user: systemd or OpenRC.
+   Without root, or on other init systems, it prints the command to start it by hand;
 5. starts it and checks the dashboard answers, then prints the address to open.
 
 `python3 -m tokendash.setup --yes` takes every proposal without asking. Tested on a clean

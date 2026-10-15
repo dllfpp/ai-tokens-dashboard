@@ -2,8 +2,6 @@
 as Telegram HTML text."""
 import json
 import os
-import subprocess
-import sys
 import threading
 import time
 import urllib.error
@@ -124,18 +122,9 @@ def history(lim):
 
 
 def access_token():
-    """Claude Code's OAuth token: ~/.claude/.credentials.json on Linux, the login keychain on macOS."""
-    try:
-        with open(os.path.join(CLAUDE_DIR, ".credentials.json")) as f:
-            return json.load(f)["claudeAiOauth"]["accessToken"]
-    except (OSError, ValueError, KeyError):
-        if sys.platform != "darwin":
-            raise
-    out = subprocess.run(["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
-                         capture_output=True, text=True, timeout=10)
-    if out.returncode:
-        raise OSError("no Claude Code login found in the macOS keychain")
-    return json.loads(out.stdout)["claudeAiOauth"]["accessToken"]
+    """Claude Code's OAuth token, from the CLI's ~/.claude/.credentials.json (Linux)."""
+    with open(os.path.join(CLAUDE_DIR, ".credentials.json")) as f:
+        return json.load(f)["claudeAiOauth"]["accessToken"]
 
 
 def _stale(err):
