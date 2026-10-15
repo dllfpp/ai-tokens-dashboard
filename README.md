@@ -44,58 +44,83 @@ TOKENDASH_DB=data/demo.db TOKENDASH_LIMITS_JSON=data/demo-limits.json CLAUDE_DIR
 
 ## Install
 
-### What you need
+The dashboard runs on **Linux**, next to **Claude Code used from the command line** (`claude`).
+The Claude desktop apps for Windows and macOS are not supported: they do not write the
+conversations where the dashboard reads them.
 
-Prepare these before you start. The wizard checks each one and says what is missing.
+### Requirements
 
-**Required**
+**Required**: without these the dashboard does not run.
 
-| | |
-|---|---|
-| Linux | with Claude Code used from the command line (`claude`). The Claude desktop apps for Windows and macOS are not supported |
-| Python 3.12 or newer | no Python packages to install. Debian 12 ships 3.11, too old: use Debian 13, Ubuntu 24.04 or newer |
-| Claude Code | used on this machine by the user the dashboard will run as: the dashboard reads the conversations it writes in `~/.claude/projects` |
-| a free TCP port | 3020 by default |
-| git | only to clone; downloading the ZIP from GitHub works too |
-
-**Optional**, each one turns on a feature
-
-| | Turns on | How to get it |
+| What | Why | Check |
 |---|---|---|
-| Claude Code login + access to `api.anthropic.com` | Claude plan limits box and charts | `claude`, then `/login`, as the same user (read from `~/.claude/.credentials.json`) |
-| Pillow | limits as a PNG image for chat messages (`/api/report/limits.png`) | `apt install python3-pil`, `apk add py3-pillow`, or `pip install pillow` |
-| tzdata (time zone database) | counting hours in a zone other than the system one | `apt install tzdata`, `apk add tzdata`, or `pip install tzdata`, when there is no `/usr/share/zoneinfo` |
+| Linux | the setup, the service and the paths are Linux ones | `uname -s` says `Linux` |
+| Python 3.12 or newer | the dashboard is Python standard library only, no packages to install | `python3 --version` |
+| Claude Code CLI, used on this machine | the dashboard reads the conversations it writes in `~/.claude/projects` of the same user | `ls ~/.claude/projects` is not empty |
+| a free TCP port | where the dashboard listens (3020 by default) | `ss -ltn` does not list it |
+
+To get the code, `git` or the ZIP from the GitHub page.
+
+**Optional**: each one turns on a feature; without it the dashboard works and that part stays off.
+
+| What | Turns on | How to get it |
+|---|---|---|
+| Claude Code login and access to `api.anthropic.com` | Claude plan limits box and its charts | `claude`, then `/login`, as the same user. It is read from `~/.claude/.credentials.json` |
+| Pillow | the limits as a PNG image for chat messages (`/api/report/limits.png`) | `apt install python3-pil` · `apk add py3-pillow` · `pip install pillow` |
+| tzdata | counting hours in a time zone other than the system one | `apt install tzdata` · `apk add tzdata` · `pip install tzdata` |
 | root or sudo, with systemd or OpenRC | a service that starts with the machine | without it, start the dashboard by hand or with your own tool |
-| CloudCLI | conversation names from CloudCLI, links to open them there | its `data/auth.db` and web address |
+| CloudCLI | conversation names from CloudCLI and links to open them there | its `data/auth.db` and web address |
 | caveman proxy | the `/caveman` savings page | `~/.caveman/caveman.db` |
-| a reverse proxy with a login | reaching the dashboard from other machines | the dashboard itself has no login |
+| a reverse proxy with a login | reaching the dashboard from other machines | the dashboard itself has no login and shows project names and conversation titles |
 
-### Run the wizard
+### Tested on
 
-On the Linux machine where you use Claude Code from the command line:
+Fresh systems, with a new user, one invented Claude Code conversation and the wizard run with
+`--yes`; after it, the service was restarted and the page checked again.
+
+| System | Python | Service | Result |
+|---|---|---|---|
+| Debian 13 (trixie) | 3.13.5 | systemd, installed with `sudo` | service enabled and running as the user, page answers, survives a restart, hours in the chosen time zone |
+| Debian 13 (trixie), no init system | 3.13.5 | none | settings saved, the wizard prints the start command, page answers |
+| Alpine Linux, current release | 3.14.8 | OpenRC, installed with `sudo` | service in the default runlevel, running as the user, page answers, survives a restart, hours in the chosen time zone |
+
+Not supported: Debian 12 and other systems with Python 3.11 or older, Windows, macOS.
+
+### Setup wizard
 
 ```sh
 git clone https://github.com/dllfpp/ai-tokens-dashboard.git
 cd ai-tokens-dashboard
-sudo python3 -m tokendash.setup      # or without sudo, to skip the service
+sudo python3 -m tokendash.setup
 ```
 
-The setup wizard:
+Run it with `sudo` to install the service, without it to only save the settings. It works on the
+user who ran `sudo`, not on root: that user's `~/.claude`, and the service runs as them.
+`--yes` takes every proposal without asking (shown in the pictures below). Run it again at any
+time: it proposes the values already saved.
 
-1. lists what is needed, then checks every required and optional dependency above and says
-   what to do about anything missing;
-2. asks for the time zone (proposes the system one), the port, the data folder, the Claude Code
-   folder and, if you use them, the public address and CloudCLI;
-3. saves the answers in `tokendash.env` next to the code (run the wizard again to change them);
-4. installs a service that starts with the machine and runs as your user: systemd or OpenRC.
-   Without root, or on other init systems, it prints the command to start it by hand;
-5. starts it and checks the dashboard answers, then prints the address to open.
+**First it lists what is needed, then checks each item.** Required ones are marked ✗ when
+missing and the wizard asks before going on; optional ones say which feature stays off and how to
+get it.
 
-`python3 -m tokendash.setup --yes` takes every proposal without asking. Tested on a clean
-Debian 13 with and without systemd, and on Alpine with OpenRC. Debian 12 ships Python 3.11, which is too old.
+<img src="docs/screenshots/wizard-checks.png" width="1153" height="980" alt="Setup wizard: list of required and optional dependencies, then the check of each one">
 
-The dashboard has no login and shows project names and conversation titles: put it behind a
-reverse proxy with authentication if it should be reachable from other machines.
+**Then it asks for the settings, saves them, installs the service and checks the page.**
+
+1. **Time zone**, proposing the system one: hours, days and weeks are counted in it.
+2. **Port**, 3020 by default.
+3. **Data folder**, where the dashboard keeps its own database (usage history, limits cache).
+   Under `sudo` it is given to the user, so the service can write to it.
+4. **Claude Code folder**, `~/.claude` of the user.
+5. **Public address**, optional, only used for link previews in chats.
+6. **CloudCLI**, proposed when found.
+
+The answers go in `tokendash.env` next to the code. With systemd it writes
+`/etc/systemd/system/tokendash.service`, with OpenRC `/etc/init.d/tokendash`, both running as the
+user. Last, it waits for the dashboard to answer (the first start imports every conversation) and
+prints the address to open.
+
+<img src="docs/screenshots/wizard-settings.png" width="1085" height="672" alt="Setup wizard: settings, saved file, systemd service installed, dashboard answering">
 
 ## New tokens and cache re-reads
 
