@@ -92,7 +92,7 @@ The setup wizard:
 5. starts it and checks the dashboard answers, then prints the address to open.
 
 `python3 -m tokendash.setup --yes` takes every proposal without asking. Tested on a clean
-Debian 13 with and without systemd. Debian 12 ships Python 3.11, which is too old.
+Debian 13 with and without systemd, and on Alpine with OpenRC. Debian 12 ships Python 3.11, which is too old.
 
 The dashboard has no login and shows project names and conversation titles: put it behind a
 reverse proxy with authentication if it should be reachable from other machines.
