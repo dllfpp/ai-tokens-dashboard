@@ -219,6 +219,7 @@ python3 -m tokendash.server    # dashboard on :3020, re-imports every 30 s
 | `TOKENDASH_INTERVAL` | `30` | seconds between imports |
 | `TOKENDASH_PUBLIC_URL` | address the browser used | absolute base for the social preview tags |
 | `CLAUDE_DIR` | `~/.claude` | where Claude Code keeps its transcripts |
+| `TOKENDASH_OAUTH_TOKEN_FILE` | empty | file with a long-lived token from `claude setup-token`, used for the plan limits instead of the CLI login (`CLAUDE_CODE_OAUTH_TOKEN` works too) |
 | `CLOUDCLI_DB`, `CLOUDCLI_URL` | empty | CloudCLI integration |
 | `CAVEMAN_DB` | `~/.caveman/caveman.db` | caveman integration |
 | `TOKENDASH_LIMITS_CACHE` | `limits-cache.json` next to the database | plan limits reply shared by all callers |

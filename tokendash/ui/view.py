@@ -198,7 +198,7 @@ def limit_chart(lim):
     (0% at the start, 100% at the reset), solid = what was actually used, dot = now."""
     w = window(lim)
     if not w:
-        return ""
+        return '<div class="lim-chart lim-idle">no active session</div>' if lim["kind"] == "session" else ""
     start, reset = w
     span = (reset - start).total_seconds()
     W, H = 300, 120

@@ -122,7 +122,15 @@ def history(lim):
 
 
 def access_token():
-    """Claude Code's OAuth token, from the CLI's ~/.claude/.credentials.json (Linux)."""
+    """Claude Code's OAuth token. A long-lived token wins (`claude setup-token`): the file named by
+    TOKENDASH_OAUTH_TOKEN_FILE, or CLAUDE_CODE_OAUTH_TOKEN; else the CLI login in
+    ~/.claude/.credentials.json (Linux)."""
+    path = os.environ.get("TOKENDASH_OAUTH_TOKEN_FILE")
+    if path:
+        with open(path) as f:
+            return f.read().strip()
+    if os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
+        return os.environ["CLAUDE_CODE_OAUTH_TOKEN"].strip()
     with open(os.path.join(CLAUDE_DIR, ".credentials.json")) as f:
         return json.load(f)["claudeAiOauth"]["accessToken"]
 

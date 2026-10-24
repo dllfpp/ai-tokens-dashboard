@@ -53,6 +53,9 @@ def card(d, box, lim, now):
     cx0, cy0, cx1, cy1 = x0 + pad, y0 + 92 * S, x1 - pad, y1 - 52 * S
     d.rounded_rectangle((cx0, cy0, cx1, cy1), radius=14 * S, fill=WELL)
     if not w:
+        msg = "no active session" if lim["kind"] == "session" else "no reset known"
+        f = font(14)
+        d.text(((cx0 + cx1 - d.textlength(msg, font=f)) / 2, (cy0 + cy1) / 2 - 9 * S), msg, font=f, fill=SOFT)
         return
     start, reset = w
     span = (reset - start).total_seconds()
